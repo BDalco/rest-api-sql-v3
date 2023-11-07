@@ -34,6 +34,9 @@ router.post('/users', asyncHandler(async (req, res) => {
 // Route that returns a list of courses.
 router.get('/courses', asyncHandler(async (req, res) => {
   const courses = await Course.findAll({
+    attributes: {
+      exclude: ['createdAt', 'updatedAt']
+    },
     include: [{
       model: User,
       as: 'owner',
@@ -47,6 +50,9 @@ router.get('/courses', asyncHandler(async (req, res) => {
 router.get('/courses/:id', asyncHandler(async (req, res) => {
   let courseId = req.params.id;
   const course = await Course.findByPk(courseId, {
+    attributes: {
+      exclude: ['createdAt', 'updatedAt']
+    },
     include: [{
       model: User,
       as: 'owner'
@@ -80,13 +86,19 @@ router.post('/courses', authenticateUser, asyncHandler(async (req, res) => {
 router.put('/courses/:id', authenticateUser, asyncHandler(async (req, res) => {
   try {
     let courseId = req.params.id;
+    const user = req.currentUser;
     const course = await Course.findByPk(courseId);
-    await course.update({
-      title: req.body.title,
-      description: req.body.description,
-      userId: req.body.userId
-    })
-    res.status(204).end();
+    
+    if(course.userId === user.id) {
+      await course.update({
+        title: req.body.title,
+        description: req.body.description,
+        userId: req.body.userId
+      })
+      res.status(204).end();
+    } else {
+      res.status(403).end();
+    }
   } catch (error) {
     console.log('ERROR: ', error.name);
 
@@ -102,9 +114,15 @@ router.put('/courses/:id', authenticateUser, asyncHandler(async (req, res) => {
 // Route that deletes a course by ID
 router.delete('/courses/:id', authenticateUser, asyncHandler(async (req, res) => {
   let courseId = req.params.id;
+  const user = req.currentUser;
   const course = await Course.findByPk(courseId);
-  await course.destroy();
-  res.status(204).end();
+  
+  if (course.userId === user.id) {
+    await course.destroy();
+    res.status(204).end();
+  } else {
+    res.status(403).end();
+  }
 }));
 
 module.exports = router;
